@@ -4,22 +4,32 @@
 ---
 - hosts: localhost
   gather_facts: no
-  vars:
-    pt_drive_letter: "E"
-    pt_disk_number: "1"
   
   tasks:
 
     - name: Fetch Tasks from FreshService
+      shell: |
+        source ../secret.env
+        python ../scripts/main.py
+      delegate_to: localhost
+
+    - name: Fetch Tasks from FreshService
       script: ../scripts/main.py
+      args:
+        chdir: /mnt/c/Users/'Mervin Hemaraju'/'My Files'/Projects/'Multi Platform'/disk_removal_automation
+      delegate_to: localhost
+
+    - include_vars:
+        file: data.json
+        name: varjs
 
     - name: Delete partition
       community.windows.win_partition:
-        drive_letter: "{{ pt_drive_letter }}"
+        drive_letter: "{{ varjs.drive }}"
         state: absent
 
     - name: Put Disk Offline
-      win_shell: Set-Disk -Number {{ pt_disk_number }} -IsOffline $True
+      win_shell: Set-Disk -Number {{ varjs.disk }} -IsOffline $True
       
 
 

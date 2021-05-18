@@ -1,0 +1,29 @@
+# This script should be used to delete a single lettered drive
+# Please specify the drive letter and disk number of the drive properly to
+# ensure proper functioning
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    pt_drive_letter: "E"
+    pt_disk_number: "1"
+  
+  tasks:
+
+    - name: Fetch Tasks from FreshService
+      script: ../scripts/main.py
+
+    - name: Delete partition
+      community.windows.win_partition:
+        drive_letter: "{{ pt_drive_letter }}"
+        state: absent
+
+    - name: Put Disk Offline
+      win_shell: Set-Disk -Number {{ pt_disk_number }} -IsOffline $True
+      
+
+
+
+
+
+        

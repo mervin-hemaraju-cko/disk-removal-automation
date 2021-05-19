@@ -2,34 +2,40 @@
 # Please specify the drive letter and disk number of the drive properly to
 # ensure proper functioning
 ---
-- hosts: localhost
+- hosts: win_jump_01
   gather_facts: no
   
   tasks:
 
     - name: Fetch Tasks from FreshService
       shell: |
-        source ../secret.env
-        python ../scripts/main.py
+        python /home/ubuntu/projects/disk-removal-automation/scripts/main.py
       delegate_to: localhost
+      environment:
+        ENV_FRESH_SERVICE_KEY_API_B64: ""
+        ENV_FRESH_SERVICE_URL: https://checkoutsupport.freshservice.com/api/v2
 
-    - name: Fetch Tasks from FreshService
-      script: ../scripts/main.py
-      args:
-        chdir: /mnt/c/Users/'Mervin Hemaraju'/'My Files'/Projects/'Multi Platform'/disk_removal_automation
-      delegate_to: localhost
+    - name: get the username running the deploy
+      become: false
+      local_action: command whoami
+      register: username_on_the_host
+
+    #- debug: var=username_on_the_host
 
     - include_vars:
-        file: data.json
+        file: "/home/{{ username_on_the_host.stdout }}/.diskremconf.json"
         name: varjs
 
+    #- debug: var=varjs.drive
+
     - name: Delete partition
-      community.windows.win_partition:
+      win_partition:
         drive_letter: "{{ varjs.drive }}"
         state: absent
 
     - name: Put Disk Offline
       win_shell: Set-Disk -Number {{ varjs.disk }} -IsOffline $True
+      when: varjs.offline == "1"
       
 
 

@@ -3,16 +3,18 @@
 import requests
 import json
 import os
+import getpass
 import const as Const
 
 template = {
     "drive": "",
-    "disk": -1
+    "disk": -1,
+    "offline": 0
 }
 
 
 def generate_config_file():
-    with open('winpart_details.json', 'w') as outfile:
+    with open(f'/home/{getpass.getuser()}/.diskremconf.json', 'w') as outfile:
         json.dump(template, outfile)
 
 def configure_template(tasks):
@@ -27,6 +29,10 @@ def configure_template(tasks):
         # Fetch the disk
         if(task["title"].lower() == "disk"):
             template["disk"] = task["description"]
+
+        # Fetch drive status
+        if(task["title"].lower() == "offline"):
+            template["offline"] = task["description"]
 
 
 def load_tasks(ticket):

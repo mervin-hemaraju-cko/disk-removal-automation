@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import requests
+import sys
 import json
 import os
 import getpass
@@ -15,6 +16,7 @@ import utils.const as Const
 
 # Empty list of drives which will be filled.
 drives = []
+
 template = {
     "drives": drives
 }
@@ -69,6 +71,12 @@ def load_tasks(ticket):
     # Return a list of opened tasks ONLY
     return list(filter(lambda d: d["status"] == 1, tasks))
     
+def retrieve_ticket_number():
+    
+    if(len(sys.argv) < 2):
+        raise Exception("Missing Arguments")
+
+    return sys.argv[1]
 
 def main():
 
@@ -76,7 +84,9 @@ def main():
     # TODO("Add Logging")
     # TODO("Handle different failing scenarios")
 
-    filtered_tasks = load_tasks("8156")
+    ticket = retrieve_ticket_number()
+
+    filtered_tasks = load_tasks(ticket)
 
     load_drives(filtered_tasks)
 

@@ -1,35 +1,42 @@
+# To run the playbook, use command:
+# ansible-playbook main.yml -vvv -e "ticket_number=8156"
+
 ---
 - hosts: win_jump_01
   gather_facts: no
+  vars:
+    project_path_root: /home/ubuntu/projects/disk-removal-automation
   
   tasks:
+
+    #- debug: var=ticket_number
+
+  # Run a Python script to fetch a list of tasks 
+  # from FreshService API and then loads them in a JSON file in
+  # /home/$USER/.diskremconf.json
     - name: Fetch Tasks from FreshService
       shell: |
-        python /home/ubuntu/projects/disk-removal-automation/scripts/get_tasks.py
+        source {{ project_path_root }}/secret.env 
+        python {{ project_path_root }}/scripts/get_tasks.py {{ ticket_number }}
+      args:
+        executable: /bin/bash 
       delegate_to: localhost
-      environment:
-        ENV_FRESH_SERVICE_KEY_API_B64: ""
-        ENV_FRESH_SERVICE_URL: https://checkoutsupport.freshservice.com/api/v2
 
-    - name: Get Active Username
-      become: false
-      local_action: command whoami
-      register: username_on_the_host
-
-    #- debug: var=username_on_the_host
-
+  # Loads the created json file in a variable
     - include_vars:
-        file: "/home/{{ username_on_the_host.stdout }}/.diskremconf.json"
+        file: "/home/$USER/.diskremconf.json"
         name: varjs
 
-    #- debug: var=varjs.drive
+    #- debug: var=varjs.drives
 
+  # Perform drive cleanup as per defined in the json file
     - name: Delete partition on Windows Server
       win_partition:
         drive_letter: "{{ item.drive }}"
         state: absent
       with_items: "{{ varjs.drives }}"
 
+  # Put disk offline if needed as per defined in json file
     - name: Put Disk Offline on Windows Server
       win_shell: Set-Disk -Number {{ item.disk }} -IsOffline $True
       with_items: "{{ varjs.drives }}"

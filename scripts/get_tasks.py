@@ -4,36 +4,49 @@ import requests
 import json
 import os
 import getpass
-import const as Const
+import utils.const as Const
 
+# The template used in the lsit of drives
+# template = {
+#     "drive": "",
+#     "disk": -1,
+#     "offline": 0
+# }
+
+# Empty list of drives which will be filled.
+drives = []
 template = {
-    "drive": "",
-    "disk": -1,
-    "offline": 0
+    "drives": drives
 }
 
 
 def generate_config_file():
+
+    # Create and load file with drives
     with open(f'/home/{getpass.getuser()}/.diskremconf.json', 'w') as outfile:
         json.dump(template, outfile)
 
-def configure_template(tasks):
+def load_drives(tasks):
 
     # Iterate through each tasks
     for task in tasks:
 
-        # Fetch the drive
-        if(task["title"].lower() == "drive"):
-            template["drive"] = task["description"]
+        # Fetch all tasks
+        if(task["title"].lower().strip() == "drive" or task["title"].lower().strip() == "disk"):
 
-        # Fetch the disk
-        if(task["title"].lower() == "disk"):
-            template["disk"] = task["description"]
+            description = task["description"].lower().strip().split("-")
+            disk_status = 0
 
-        # Fetch drive status
-        if(task["title"].lower() == "offline"):
-            template["offline"] = task["description"]
+            if(description[2] == "offline"):
+                disk_status = 1
 
+            drives.append(
+                {
+                    "drive": description[0].upper(),
+                    "disk": description[1],
+                    "offline": disk_status
+                }
+            )
 
 def load_tasks(ticket):
 
@@ -55,7 +68,6 @@ def load_tasks(ticket):
 
     # Return a list of opened tasks ONLY
     return list(filter(lambda d: d["status"] == 1, tasks))
-
     
 
 def main():
@@ -66,7 +78,7 @@ def main():
 
     filtered_tasks = load_tasks("8156")
 
-    configure_template(filtered_tasks)
+    load_drives(filtered_tasks)
 
     generate_config_file()
 

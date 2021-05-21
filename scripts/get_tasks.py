@@ -7,48 +7,94 @@ import os
 import getpass
 import utils.const as Const
 
-# The template used in the lsit of drives
-# template = {
-#     "drive": "",
-#     "disk": -1,
-#     "offline": 0
-# }
 
-# Empty list of drives which will be filled.
+# Define empty lists of disks, drives and volumes
+# that will be filled at the end of the script execution
 drives = []
+disks = []
+volumes = []
+
+diskpart_config_file = ".diskpart.txt"
+json_config_file = ".diskremconf.json"
 
 template = {
-    "drives": drives
+    "diskpart_config_file": diskpart_config_file,
+    "volumes": volumes
 }
 
 
-def generate_config_file():
+def generate_config_files():
+    # Create diskpart file config
+    with open(f'/home/{getpass.getuser()}/{diskpart_config_file}', 'w') as textfile:
 
-    # Create and load file with drives
-    with open(f'/home/{getpass.getuser()}/.diskremconf.json', 'w') as outfile:
-        json.dump(template, outfile)
+        # Drive delete commands
+        for drive in drives:
+            textfile.write(f"select volume {drive} \n")
+            textfile.write(f"delete volume \n")
+        
+        # Disk offline command
+        disk_offline = filter(lambda x: x["offline"] == 1, disks)
+
+        for disk in disk_offline:
+            textfile.write(f"select disk {disk['disk']} \n")
+            textfile.write(f"offline disk \n")
+
+        # Final Exit command
+        textfile.write(f"exit")
+
+    # Create json file config
+    with open(f'/home/{getpass.getuser()}/{json_config_file}', 'w') as jsonfile:
+        json.dump(template, jsonfile)
 
 def load_drives(tasks):
+    # Define all glboal variables
+    global drives
+    global volumes
+    global disks
 
     # Iterate through each tasks
     for task in tasks:
 
-        # Fetch all tasks
-        if(task["title"].lower().strip() == "drive" or task["title"].lower().strip() == "disk"):
+        # Get the task title and format
+        task_title = task["title"].lower().strip()
 
-            description = task["description"].lower().strip().split("-")
-            disk_status = 0
+        # Fetch drives
+        if(task_title == "drive" or task_title == "drives"):
 
-            if(description[2] == "offline"):
-                disk_status = 1
+            description = task["description"].lower().strip().split(";")
+            
+            # Clean each drives and format
+            for d in description:
+                drives.append(d.strip().upper())
 
-            drives.append(
-                {
-                    "drive": description[0].upper(),
-                    "disk": description[1],
-                    "offline": disk_status
-                }
-            )
+
+        # Fetch Disks
+        if(task_title == "disk" or task_title == "disks"):
+            description = task["description"].lower().strip().split(";")
+            disk_actions = [d.strip() for d in description]
+
+            for action in disk_actions:
+                split_action = action.split(":")
+                disk_status = 0
+
+                if(split_action[1] == "offline"):
+                    disk_status = 1
+
+                disks.append(
+                    {
+                        "disk": split_action[0],
+                        "offline": disk_status
+                    }
+                )
+        
+        # Fetch Volumes
+        if(task_title == "volume" or task_title == "volumes"):
+
+            description = task["description"].lower().strip().split(";")
+
+            # Clean each volumes
+            for v in description:
+                volumes.append(v.strip())
 
 def load_tasks(ticket):
 
@@ -90,7 +136,7 @@ def main():
 
     load_drives(filtered_tasks)
 
-    generate_config_file()
+    generate_config_files()
 
 
 

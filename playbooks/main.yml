@@ -5,44 +5,72 @@
 - hosts: win_jump_01
   gather_facts: no
   vars:
-    project_path_root: /home/ubuntu/projects/disk-removal-automation
+    path_project_root: /home/ubuntu/projects/disk-removal-automation
+    path_temp_remote: C:/Temp/disk_removal
+    file_config_json: .diskremconf.json
   
   tasks:
 
     #- debug: var=ticket_number
 
-  # Run a Python script to fetch a list of tasks 
-  # from FreshService API and then loads them in a JSON file in
-  # /home/$USER/.diskremconf.json
+    # Get the current logged in username for future use
+    # Store in current_user variable
+    - name: Get Current Username
+      shell: echo $USER
+      register: current_user
+      delegate_to: localhost
+
+    # Run a Python script to fetch a list of tasks 
+    # from FreshService API and then loads them in a JSON file in
+    # /home/$USER/.diskremconf.json
     - name: Fetch Tasks from FreshService
       shell: |
-        source {{ project_path_root }}/secret.env 
-        python {{ project_path_root }}/scripts/get_tasks.py {{ ticket_number }}
+        source {{ path_project_root }}/secret.env 
+        python {{ path_project_root }}/scripts/get_tasks.py {{ ticket_number }}
       args:
         executable: /bin/bash 
       delegate_to: localhost
 
-  # Loads the created json file in a variable
+    # Loads the created json file in a variable
     - include_vars:
-        file: "/home/$USER/.diskremconf.json"
-        name: varjs
+        file: "/home/$USER/{{ file_config_json }}"
+        name: diskconf
 
-    #- debug: var=varjs.drives
+    #- debug: var=diskconf.drives
 
-  # Perform drive cleanup as per defined in the json file
-    - name: Delete partition on Windows Server
-      win_partition:
-        drive_letter: "{{ item.drive }}"
+    # Create a directory to store config file
+    - name: Create Directory Structure
+      win_file:
+        path: "{{ path_temp_remote}}/{{ current_user.stdout }}"
+        state: directory
+
+    # Copy the config file created in the new directory
+    - name: Copy Diskpart file to Remote
+      win_copy:
+        src: /home/$USER/{{ diskconf.diskpart_config_file }}
+        dest: "{{ path_temp_remote}}/{{ current_user.stdout }}/{{ diskconf.diskpart_config_file }}"
+    
+    # Run the diskpart script
+    - name: Run Diskpart Script
+      win_command: DISKPART /s {{ diskconf.diskpart_config_file }}
+      args:
+        chdir: "{{ path_temp_remote}}/{{ current_user.stdout }}"
+    
+    # Config file cleanup on Remote
+    - name: Delete Diskpart file from Remote
+      win_file: 
         state: absent
-      with_items: "{{ varjs.drives }}"
+        path: "{{ path_temp_remote}}/{{ current_user.stdout }}/{{ diskconf.diskpart_config_file }}"
 
-  # Put disk offline if needed as per defined in json file
-    - name: Put Disk Offline on Windows Server
-      win_shell: Set-Disk -Number {{ item.disk }} -IsOffline $True
-      with_items: "{{ varjs.drives }}"
-      when: item.offline == 1
-      
-
+    # Config file cleanup on local
+    - name: Cleanup Config Files
+      shell: |
+        rm /home/$USER/{{ diskconf.diskpart_config_file }} 
+        rm /home/$USER/{{ file_config_json }}
+      args:
+        executable: /bin/bash 
+      delegate_to: localhost
+    
 
 
 

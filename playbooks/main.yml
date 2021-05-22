@@ -56,6 +56,16 @@
       args:
         chdir: "{{ path_temp_remote}}/{{ current_user.stdout }}"
     
+    # Run a Python script to delete/detach volumes obtained in
+    # /home/$USER/.diskremconf.json
+    - name: Detach / Delete Volumes Associated
+      shell: |
+        source {{ path_project_root }}/secret.env 
+        python {{ path_project_root }}/scripts/delete_volumes.py
+      args:
+        executable: /bin/bash 
+      delegate_to: localhost
+
     # Config file cleanup on Remote
     - name: Delete Diskpart file from Remote
       win_file: 

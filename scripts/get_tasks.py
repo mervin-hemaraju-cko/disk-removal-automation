@@ -6,7 +6,16 @@ import json
 import os
 import getpass
 import utils.const as Const
+import utils.logger as Logger
+from datetime import datetime
 
+
+######################################
+########## Global Variables ##########
+######################################
+
+# The global logger variable for Logging
+logger = None
 
 # Define empty lists of disks, drives and volumes
 # that will be filled at the end of the script execution
@@ -22,8 +31,28 @@ template = {
     "volumes": volumes
 }
 
+######################################
+############ My Functions ############
+######################################
+
+def logger_config():
+    global logger
+    # log folder path
+    LOG_FOLDER = os.path.join(os.path.dirname(__file__), "logs/")
+
+    # create log folder
+    if os.path.exists(LOG_FOLDER) is False:
+        os.mkdir(LOG_FOLDER)
+
+    logger = Logger.create_logger(
+        (LOG_FOLDER + datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + ".log")
+    )
 
 def generate_config_files():
+
+    # Log a message about current process
+    log("Generating Config Files")
+
     # Create diskpart file config
     with open(f'/home/{getpass.getuser()}/{diskpart_config_file}', 'w') as textfile:
 
@@ -47,6 +76,10 @@ def generate_config_files():
         json.dump(template, jsonfile)
 
 def load_drives(tasks):
+
+    # Log a message about current process
+    log("Loading drives and disks from FreshService tasks")
+
     # Define all glboal variables
     global drives
     global volumes
@@ -98,6 +131,9 @@ def load_drives(tasks):
 
 def load_tasks(ticket):
 
+    # Log a message about current process
+    log("Fetching tasks from FreshService")
+
     # Build Header
     headers = Const.require_headers_template(
         os.environ['ENV_FRESH_SERVICE_KEY_API_B64'])
@@ -119,24 +155,61 @@ def load_tasks(ticket):
     
 def retrieve_ticket_number():
     
+    # Log a message about current process
+    log("Retrieving ticket number")
+
     if(len(sys.argv) < 2):
         raise Exception("Missing Arguments")
 
-    return sys.argv[1]
+    # Remove first arg which returns script path
+    sys.argv.pop(0)
+
+    for arg in sys.argv:
+        if(arg != None and arg != ""):
+            return arg
+    
+    raise Exception("Incorrect arguments format has been passed.") 
+
+def log(message):
+    # Logs an info message
+    logger.info(message)
+
+def debug(message):
+    # Logs a debug message
+    logger.debug(message)
+
+#####################################
+########### Main Function ###########
+#####################################
 
 def main():
+    
+    # Try except clause to
+    # handle all possible errors in the whole script
+    # to prevent crash
+    try:
+        # Initialize Logger
+        logger_config()
 
-    # TODO("Handle Errors")
-    # TODO("Add Logging")
-    # TODO("Handle different failing scenarios")
+        # Get the ticket number from arguments
+        ticket = retrieve_ticket_number()
 
-    ticket = retrieve_ticket_number()
+        # Load the tasks and filter them
+        filtered_tasks = load_tasks(ticket)
 
-    filtered_tasks = load_tasks(ticket)
+        # Load the disk information
+        load_drives(filtered_tasks)
 
-    load_drives(filtered_tasks)
+        # Generate the necessary config files
+        generate_config_files()
+    
+    except requests.exceptions.HTTPError as HE:
+        error = Const.EXCEPTION_HTTP_ERROR.format(HE)
+        debug(error)
 
-    generate_config_files()
+    except Exception as e:
+        error = Const.EXCEPTION_GENERAL.format(e)
+        debug(error)   
 
 
 

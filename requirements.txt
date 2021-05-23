@@ -1,0 +1,4 @@
+ansible==2.9.6
+boto3==1.17.77
+pywinrm==0.3.0
+pywinrm[credssp]

@@ -61,12 +61,17 @@ def generate_config_files():
             textfile.write(f"select volume {drive} \n")
             textfile.write(f"delete volume \n")
         
-        # Disk offline command
+        # Disk filtering
         disk_offline = filter(lambda x: x["offline"] == 1, disks)
+        disk_online = filter(lambda x: x["offline"] == 0, disks)
 
         for disk in disk_offline:
             textfile.write(f"select disk {disk['disk']} \n")
             textfile.write(f"offline disk \n")
+
+        for disk in disk_online:
+            textfile.write(f"select disk {disk['disk']} \n")
+            textfile.write(f"online disk \n")
 
         # Final Exit command
         textfile.write(f"exit")
@@ -127,7 +132,17 @@ def load_drives(tasks):
 
             # Clean each volumes
             for v in description:
-                volumes.append(v.strip())
+                v_action = v.split(":")
+                v_delete = 0
+                volume_id = v_action[0].strip()
+
+                if(len(v_action) > 1 and v_action[1].strip().lower() == "delete"):
+                    v_delete = 1
+
+                volumes.append({
+                    "id": volume_id,
+                    "delete": v_delete
+                })
 
 def load_tasks(ticket):
 
@@ -183,7 +198,7 @@ def debug(message):
 #####################################
 
 def main():
-    
+
     # Try except clause to
     # handle all possible errors in the whole script
     # to prevent crash
@@ -191,6 +206,9 @@ def main():
         # Initialize Logger
         logger_config()
 
+        # Log the script running
+        log("get_tasks.py running...")
+        
         # Get the ticket number from arguments
         ticket = retrieve_ticket_number()
 
@@ -202,6 +220,9 @@ def main():
 
         # Generate the necessary config files
         generate_config_files()
+
+        # Log success message
+        log("Tasks fetched successfully from FreshService")
     
     except requests.exceptions.HTTPError as HE:
         error = Const.EXCEPTION_HTTP_ERROR.format(HE)

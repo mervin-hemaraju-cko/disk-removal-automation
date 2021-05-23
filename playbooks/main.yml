@@ -1,5 +1,5 @@
 # To run the playbook, use command:
-# ansible-playbook main.yml -vvv -e "ticket_number=8156"
+# ansible-playbook main.yml -vvv -e "ticket_number=8254"
 
 ---
 - hosts: win_jump_01
@@ -65,6 +65,7 @@
       args:
         executable: /bin/bash 
       delegate_to: localhost
+      when: diskconf["volumes"] | length > 0
 
     # Config file cleanup on Remote
     - name: Delete Diskpart file from Remote
